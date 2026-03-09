@@ -1,9 +1,6 @@
-`timescale 1ns/1ps
-
 module pipeline_datapath(
     input  wire        clk,
     input  wire        rst,
-
     output wire [7:0]  proc_mem_addr,
     output wire        proc_mem_en,
     output wire        proc_mem_we,
@@ -18,18 +15,7 @@ wire mem_stall;
 wire cpu_rst_local;
 wire cpu_boot_wait;
 wire en_reg;
-
 reg  boot_wait_r;
-
-assign cpu_rst_local = rst | ~proc_active;
-assign cpu_boot_wait = boot_wait_r;
-assign en_reg = proc_active & ~mem_stall & ~cpu_boot_wait;
-
-always @(posedge clk) begin
-  if (cpu_rst_local) boot_wait_r <= 1'b1;
-  else if (boot_wait_r) boot_wait_r <= 1'b0;
-end
-
 wire [10:0] pc_if;
 wire [10:0] pc_new;
 wire flush_in;
@@ -52,6 +38,7 @@ wire WMM_id;
 wire RMM_id;
 wire MOA_id;
 wire jal_jalr_id;
+wire AUIPC_id;
 wire [10:0] pc_ex;
 wire [63:0] IMM_ex;
 wire wreg_ex;
@@ -65,6 +52,7 @@ wire WMM_ex;
 wire RMM_ex;
 wire MOA_ex;
 wire jal_jalr_ex;
+wire AUIPC_ex;
 wire wist_ex;
 wire is_b_ex;
 wire is_jal_ex;
@@ -101,14 +89,33 @@ wire [63:0] wb_data_out;
 wire wb_wreg_out;
 wire [4:0] wb_rd_out;
 
+assign cpu_rst_local = rst | ~proc_active;
+assign cpu_boot_wait = boot_wait_r;
+assign en_reg = proc_active & ~mem_stall & ~cpu_boot_wait;
 assign flush_in = jump_valid_ex_final;
 assign pc_new   = jump_addr_ex_final;
 
+always @(posedge clk) begin
+  if (cpu_rst_local) boot_wait_r <= 1'b1;
+  else if (boot_wait_r) boot_wait_r <= 1'b0;
+end
+
 pc pc_inst(
   .clk(clk), 
-  .rst(cpu_rst_local), .enable(en_reg), .jump_valid(flush_in), .jump_addr(pc_new), .pc(pc_if));
+  .rst(cpu_rst_local), 
+  .enable(en_reg), 
+  .jump_valid(flush_in), 
+  .jump_addr(pc_new), 
+  .pc(pc_if)
+);
 
-Icache Imm(.clk(clk), .addr(pc_if[10:2]), .din(32'b0), .dout(instr_in), .we(1'b0));
+Icache Imm(
+  .clk(clk), 
+  .addr(pc_if[10:2]), 
+  .din(32'b0), 
+  .dout(instr_in), 
+  .we(1'b0)
+);
 
 if_id_reg if_id_reg_inst (
   .clk(clk), .rst(cpu_rst_local), .enable(en_reg), .wist(flush_in), .pc_in(pc_if), .inst_in(instr_in), .pc_out(pc_id), .inst_out(instr_id), .wist_out(flush_out));
@@ -135,7 +142,8 @@ id_stage id_stage_inst (
   .WMM(WMM_id), 
   .RMM(RMM_id), 
   .MOA(MOA_id), 
-  .jal_jalr(jal_jalr_id)
+  .jal_jalr(jal_jalr_id), 
+  .AUIPC(AUIPC_id)
 );
 
 id_ex_reg id_ex_inst (
@@ -155,6 +163,7 @@ id_ex_reg id_ex_inst (
   .RMM(RMM_id), 
   .MOA(MOA_id), 
   .jal_jalr(jal_jalr_id), 
+  .AUIPC(AUIPC_id), 
   .flush_in(flush_in), 
   .flush_out(flush_out), 
   .is_b_in(is_b_id), 
@@ -173,6 +182,7 @@ id_ex_reg id_ex_inst (
   .RMM_out(RMM_ex), 
   .MOA_out(MOA_ex), 
   .jal_jalr_out(jal_jalr_ex), 
+  .AUIPC_out(AUIPC_ex), 
   .wist_out(wist_ex), 
   .is_b_out(is_b_ex), 
   .is_jal_out(is_jal_ex), 
@@ -193,6 +203,7 @@ ex_stage ex_stage_inst (
   .RMM_in(RMM_ex), 
   .MOA_in(MOA_ex), 
   .jal_jalr_in(jal_jalr_ex), 
+  .AUIPC_in(AUIPC_ex), 
   .wist_in(wist_ex), 
   .is_b_in(is_b_ex), 
   .is_jal_in(is_jal_ex), 

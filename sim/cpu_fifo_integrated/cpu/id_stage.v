@@ -1,3 +1,4 @@
+// -------------------- ID stage --------------------
 module id_stage(
   input  wire        clk,
   input  wire        rst,
@@ -20,7 +21,8 @@ module id_stage(
   output wire        WMM,
   output wire        RMM,
   output wire        MOA,
-  output wire        jal_jalr
+  output wire        jal_jalr,
+  output wire        AUIPC
 );
 
 wire [6:0] opcode;
@@ -31,6 +33,19 @@ wire [4:0] rs2_addr;
 wire [4:0] rd_addr;
 wire [63:0] rd1;
 wire [63:0] rd2;
+wire is_b;
+wire is_jal;
+wire is_jalr;
+wire is_lui;
+wire is_auipc;
+wire use_link;
+wire [10:0] pc_plus4;
+wire [63:0] pc_u64;
+wire [63:0] pc_plus4_u64;
+wire WMM_int;
+wire RMM_int;
+wire MOA_int;
+wire wreg_int;
 
 assign opcode   = inst_in[6:0];
 assign funct3   = inst_in[14:12];
@@ -43,45 +58,35 @@ assign funct3_out  = funct3;
 assign funct7_out  = funct7;
 
 reg_files u_reg_files (
-  .clk(clk), 
-  .rst(rst), 
-  .rs1_addr(rs1_addr), 
-  .rs2_addr(rs2_addr), 
-  .rd_addr(wb_rd_addr), 
-  .wb_data(wb_data), 
-  .wea(wb_wea), 
-  .rd1(rd1), 
+  .clk(clk),
+  .rst(rst),
+  .rs1_addr(rs1_addr),
+  .rs2_addr(rs2_addr),
+  .rd_addr(wb_rd_addr),
+  .wb_data(wb_data),
+  .wea(wb_wea),
+  .rd1(rd1),
   .rd2(rd2)
 );
-
-assign rd1_out = rd1;
-
-wire is_b;
-wire is_jal;
-wire is_jalr;
-wire is_lui;
-wire is_auipc;
 
 assign is_b    = (opcode == 7'b1100011);
 assign is_jal  = (opcode == 7'b1101111);
 assign is_jalr = (opcode == 7'b1100111) && (funct3 == 3'b000);
 assign is_lui   = (opcode == 7'b0110111);
 assign is_auipc = (opcode == 7'b0010111);
+assign use_link = is_jal | is_jalr;
 assign is_b_out    = is_b;
 assign is_jal_out  = is_jal;
 assign is_jalr_out = is_jalr;
-assign jal_jalr = is_jal | is_jalr | is_lui | is_auipc;
-
-wire [10:0] pc_plus4;
-wire [63:0] pc_u64;
-wire [63:0] pc_plus4_u64;
-wire [63:0] auipc_val;
-
+assign jal_jalr = use_link | is_lui;
+assign AUIPC = is_auipc;
 assign pc_plus4     = pc_in + 11'd4;
 assign pc_u64       = {53'd0, pc_in};
 assign pc_plus4_u64 = {53'd0, pc_plus4};
-assign auipc_val = pc_u64 + imm;
-assign rd2_out = (is_jal | is_jalr) ? pc_plus4_u64 : is_auipc ? auipc_val : is_lui ? imm : rd2;
+assign rd1_out = is_auipc ? pc_u64 : rd1;
+assign rd2_out = use_link ? pc_plus4_u64 :
+                 is_lui   ? imm :
+                 rd2;
 
 always @(*) begin
   case (opcode)
@@ -98,11 +103,7 @@ always @(*) begin
   endcase
 end
 
-assign ALUsrc = (opcode == 7'b0010011) | (opcode == 7'b0000011) | (opcode == 7'b0100011);
-wire WMM_int;
-wire RMM_int;
-wire MOA_int;
-wire wreg_int;
+assign ALUsrc = (opcode == 7'b0010011) | (opcode == 7'b0000011) | (opcode == 7'b0100011) | is_auipc;
 assign WMM_int = (opcode == 7'b0100011);
 assign RMM_int = (opcode == 7'b0000011);
 assign MOA_int = (opcode == 7'b0000011);

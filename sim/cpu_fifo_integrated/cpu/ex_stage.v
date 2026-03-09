@@ -1,3 +1,4 @@
+// -------------------- EX stage --------------------
 module ex_stage(
   input  wire [10:0] pc_in,
   input  wire [63:0] IMM_in,
@@ -12,6 +13,7 @@ module ex_stage(
   input  wire        RMM_in,
   input  wire        MOA_in,
   input  wire        jal_jalr_in,
+  input  wire        AUIPC_in,
   input  wire        wist_in,
   input  wire        is_b_in,
   input  wire        is_jal_in,
@@ -29,12 +31,24 @@ module ex_stage(
 );
 
 wire [63:0] b_sel;
-assign b_sel = ALUsrc_in ? IMM_in : rd2_in;
 wire add_force;
-assign add_force = WMM_in | RMM_in;
 wire zero_unused;
 wire lt_unused;
 wire ltu_unused;
+wire eq;
+wire lt_s;
+wire ge_s;
+wire lt_u;
+wire ge_u;
+reg b_take;
+wire jump_valid_raw;
+wire [63:0] pc_u64;
+wire [63:0] base64;
+wire [63:0] target_raw;
+wire [63:0] target_aligned;
+
+assign b_sel = ALUsrc_in ? IMM_in : rd2_in;
+assign add_force = WMM_in | RMM_in | AUIPC_in;
 
 alu u_alu (
   .a(rd1_in), 
@@ -49,13 +63,11 @@ alu u_alu (
   .ltu(ltu_unused)
 );
 
-wire eq, lt_s, ge_s, lt_u, ge_u;
 assign eq   = (rd1_in == rd2_in);
 assign lt_s = ($signed(rd1_in) <  $signed(rd2_in));
 assign ge_s = ($signed(rd1_in) >= $signed(rd2_in));
 assign lt_u = (rd1_in <  rd2_in);
 assign ge_u = (rd1_in >= rd2_in);
-reg b_take;
 
 always @(*) begin
   if (is_b_in) begin
@@ -71,14 +83,8 @@ always @(*) begin
   end else b_take = 1'b0;
 end
 
-wire jump_valid_raw;
 assign jump_valid_raw = b_take | is_jal_in | is_jalr_in;
 assign jump_valid_out = (wist_in) ? 1'b0 : jump_valid_raw;
-
-wire [63:0] pc_u64;
-wire [63:0] base64;
-wire [63:0] target_raw;
-wire [63:0] target_aligned;
 assign pc_u64   = {53'd0, pc_in};
 assign base64   = is_jalr_in ? rd1_in : pc_u64;
 assign target_raw = base64 + IMM_in;
