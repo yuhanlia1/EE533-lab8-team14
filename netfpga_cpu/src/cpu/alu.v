@@ -1,12 +1,12 @@
 // -------------------- ALU --------------------
-module alu (
-  input  wire [63:0] a,          // CHANGED
-  input  wire [63:0] b,          // CHANGED
+module alu(
+  input  wire [63:0] a,
+  input  wire [63:0] b,
   input  wire [2:0]  func3,
   input  wire [6:0]  func7,
   input  wire        add_force,
   input  wire        is_imm,
-  output reg  [63:0] y,          // CHANGED
+  output reg  [63:0] y,
   output wire        zero,
   output wire        lt,
   output wire        ltu
@@ -14,26 +14,18 @@ module alu (
 
 wire sub_sra;
 assign sub_sra = func7[5];
-
-// CHANGED: 64-bit shifting requires a 6-bit shift amount [5:0]
 wire [5:0] shamt;
 assign shamt = b[5:0];
-
 assign zero = (a == b);
 assign lt   = ($signed(a) < $signed(b));
 assign ltu  = (a < b);
-
 wire [63:0] srl_val;
 assign srl_val = a >> shamt;
-
 wire [63:0] sra_val;
-// CHANGED: 64-bit Sign extension logic
-assign sra_val = (shamt == 6'd0) ? a :
-                 (srl_val | ({64{a[63]}} << (64 - shamt)));
+assign sra_val = (shamt == 6'd0) ? a : (srl_val | ({64{a[63]}} << (64 - shamt)));
 
 always @(*) begin
   y = 64'd0;
-
   if (add_force) begin
     y = a + b;
   end else if (is_imm) begin

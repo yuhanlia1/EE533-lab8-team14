@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <nf:project xmlns:nf="http://www.NetFPGA.org/NF2_register_system" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.NetFPGA.org/NF2_register_system NF2_register_system.xsd ">
-  <nf:name>Network_Processor</nf:name>
-  <nf:description>convertible FIFO</nf:description>
+  <nf:name>Pipeline</nf:name>
+  <nf:description>Simple 5 stage pipeline</nf:description>
   <nf:version_major>0</nf:version_major>
   <nf:version_minor>1</nf:version_minor>
   <nf:version_revision>0</nf:version_revision>
@@ -38,7 +38,7 @@
     <nf:group name="udp">
       <nf:instance name="in_arb" />
       <nf:instance name="router_op_lut" />
-      <!--<nf:instance name="pipeline" /> -->
+      <nf:instance name="user_top" />
       <nf:instance name="strip_headers" />
       <nf:instance name="output_queues" />
     </nf:group>

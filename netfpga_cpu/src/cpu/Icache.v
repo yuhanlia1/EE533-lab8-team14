@@ -1,4 +1,4 @@
-module Icache (
+module Icache(
   input  wire        clk,
   input  wire [8:0]  addr,
   input  wire [31:0] din,
@@ -9,7 +9,8 @@ module Icache (
 reg [31:0] mem [0:511];
 
 always @(posedge clk) begin
-  if (we) mem[addr] <= din;
+  if (we)
+    mem[addr] <= din;
   dout <= mem[addr];
 end
 
